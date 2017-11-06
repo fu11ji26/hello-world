@@ -1,0 +1,132 @@
+1.
+RaspberryPi2 ModelB V1.1
+OS:Raspbian
+$ lsb_release -a
+Raspbian Debian GNU/Linux 7.11 (wheezy)
+ローカルIPアドレス
+192.168.100.117
+Webサーバ(webiopi)
+
+2.
+RaspberryPi3 ModelB V1.2
+OS:Ubuntu
+$ lsb_release -a
+Ubuntu 16.04.3 LTS
+ローカルIPアドレス
+192.168.100.114
+Webサーバ(apache2)
+------------------------------------------------------------
+IPアドレスの確認・設定・探索
+ローカル　 $ip addr show or $ifconfig
+グローバル $ curl inet-ip.info
+探索 $nmap -sP 192.168.100.0/24
+------------------------------------------------------------
+ネットワーク設定
+/etc/network/interfaces
+
+auto lo
+iface lo inet loopback
+
+allow-hotplug eth0
+iface eth0 inet dhcp
+
+auto wlan0
+allow-hotplug wlan0
+iface wlan0 inet dhcp
+wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+wireless-power off
+
+/etc/wpa_supplicant/wpa_supplicant.conf
+ 
+network={
+        ssid="L01_44C3463BA4FE"
+        #psk="hrm0it7ege0bn4m"
+        psk=4ab2c2a3d75ff38883c1b25a69cb047bf3374ec82656805043b7bb5fc68ac149
+}
+
+network={
+        ssid="Buffalo-G-D830"
+        psk="wutwsvukpuvxw"
+}
+
+network={
+        ssid="NTGR-741B"
+        psk="34979015"
+}
+
+------------------------------------------------------------
+プロキシ設定
+~/.bashrc
+export https_proxy="http://proxy.in.nagaoka-ct.ac.jp:8080/"
+export http_proxy="http://proxy.in.nagaoka-ct.ac.jp:8080/"
+export ftp_proxy="http://proxy.in.nagaoka-ct.ac.jp:8080/"
+
+apt-getの設定
+/etc/apt/apt.conf
+Acquire::ftp::proxy "ftp://proxy.in.nagaoka-ct.ac.jp:8080/";
+Acquire::http::proxy "http://proxy.in.nagaoka-ct.ac.jp:8080/";
+Acquire::https::proxy "https://proxy.in.nagaoka-ct.ac.jp:8080/";
+
+webブラウザ
+プロキシの例外サイトにIPアドレスを登録
+------------------------------------------------------------
+ルーター設定(Speed Wi-Fi HOME)
+NAT+IPマスカレード（ファイアウォール・ポートマッピング、ポートフォワーディング）WANポート:80 LANアドレス:192.168.100.117 LANポート:8000
+
+グローバルIPアドレス -> ローカル
+ikeda.mydns.jp -> 192.168.100.117:8000
+ID:pi, PW:raspberry
+------------------------------------------------------------
+1. cronを使って定期的にDDNS(mydns)の設定を反映させる
+/home/pi/webiopi_sample/mydns_update.sh
+
+#!/bin/bash
+wget -O - 'http://mydns473069:EmHLCzi2RiU@www.mydns.jp/login.html'
+------------------------------------------------------------
+2. グローバルIPの変更を自宅サーバからメールで通知する
+ipchecker.sh
+
+ルート権限(sudo -s)でSSMTPの設定ファイル(/etc/ssmtp/ssmtp.conf)を編集
+http://eng-memo.hatenadiary.com/entry/2016/05/05/211419
+------------------------------------------------------------
+上記の1,2をcrontabで自動実行(1:5分おき, 2:30分おき)
+$ crontab (-u pi) -e（crontabの編集）
+ファイルの置き場所 /var/spool/cron/crontabs/
+
+5,35 * * * * sudo sh /home/pi/webiopi_sample/mydns_update.sh
+*/5 * * * * sudo sh /home/pi/webiopi_sample/ipchecker.sh
+
+Pi3の時 /home/pi/webiopi_sample/ -> /home/ubuntu/RaspberryPiMouse/utils/
+$ crontab -l（crontabの登録確認）
+$ sudo /etc/init.d/cron status（状態確認）
+------------------------------------------------------------
+apache2サーバ(/etc/apache2)
+$ sudo apache2ctl [start, stop]
+$ sudo service apache2 [status, start, stop] -> Warning
+$ sudo /etc/init.d/apache2 [status, start, stop]
+------------------------------------------------------------
+webiopiサーバ(/etc/webiopi Raspi3で表示されない)
+$ sudo /etc/init.d/webiopi [start, stop]
+自動実行
+$ sudo update-rc.d webiopi [defaults, remove]
+デバッグ＆実行
+$ sudo webiopi -d -c /etc/webiopi/config
+
+設定ファイルの編集(/etc/webiopi/config)
+[SCRIPTS]
+myscript = /home/pi/webiopi_sample/python/script.py
+[HTTP]
+doc-root = /home/pi/webiopi_sample/html
+# welcome-file = mosam.html（変更する場合）
+
+パスワードの変更（変更後は再スタート）
+$ sudo webiopi-passwd
+ID:pi, PW:raspberry
+$ sudo /etc/init.d/webiopi restart
+------------------------------------------------------------
+言語設定
+$ sudo apt-get install task-japanese	#Debian
+$ sudo apt-get install language-pack-ja	#Ubuntu
+$ sudo vim /etc/locale.gen
+ja_JP.UTF-8 en_US.UTF-8の行をコメントアウト
+$ sudo locale-gen
